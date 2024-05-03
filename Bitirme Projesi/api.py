@@ -1,52 +1,37 @@
-import pandas as pd
-from zipfile import ZipFile
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from sklearn.preprocessing import LabelEncoder
-import tensorflow as tf
+import numpy as np
+import pandas as pd
+from tensorflow.keras.models import load_model
 
+# Modelinizi yükleyin
+model = load_model("model.h5")
+
+# FastAPI uygulamasını oluşturun
 app = FastAPI()
 
-class Passenger(BaseModel):
+# Gelen veri için giriş modeli
+class Item(BaseModel):
     Pclass: int
-    Name: str
+    Name:str
     Sex: str
     Age: float
     SibSp: int
     Parch: int
-    Ticket: str
+    Ticket:str
     Fare: float
-    Cabin: str
+    Cabin:str
     Embarked: str
 
+# Tahmin endpoint'i
 @app.post("/predict/")
-async def predict_survival(passenger: Passenger):
-    # Öncelikle gelen veriyi bir DataFrame'e dönüştürme
-    data = pd.DataFrame([passenger.dict()])
-    
-    # Model dosyasının yolu
-    model_path = "path/to/your/model/directory/model.h5"
+async def predict_age(item: Item):
+    # Gelen veriyi diziye dönüştürme
+    input_data = np.array([[item.Pclass, item.Name, item.Sex, item.Age, item.SibSp, item.Parch, item.Ticket, item.Fare, item.Cabin, item.Embarked,]])
 
-    # Modeli yükleme
-    try:
-        model = tf.keras.models.load_model(model_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Model loading failed")
-    
-    # Veriyi modele uygun hale getirme
-    label_encoder = LabelEncoder()
-    categorical_columns = ['Name', 'Sex', 'Cabin', 'Embarked', 'Ticket']
-    for column in categorical_columns:
-        data[column] = label_encoder.fit_transform(data[column])
-    
     # Tahmin yapma
-    try:
-        prediction = model.predict(data.drop(columns=["Age"]))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Prediction failed")
-    
-    return {"survival_probability": prediction[0][0]}
+    prediction = model.predict(input_data)
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # Tahmini dön
+    return {"predicted_age": prediction[0][0]}
+
